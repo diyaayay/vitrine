@@ -43,12 +43,15 @@ impl Vitrine {
                     |_, modifiers, handle| {
                         if pressed {
                             let sym = handle.modified_sym().raw();
-                            if (xkb::KEY_XF86Switch_VT_1..=xkb::KEY_XF86Switch_VT_12).contains(&sym) {
+                            if (xkb::KEY_XF86Switch_VT_1..=xkb::KEY_XF86Switch_VT_12).contains(&sym)
+                            {
                                 return FilterResult::Intercept(KeyAction::VtSwitch(
                                     (sym - xkb::KEY_XF86Switch_VT_1 + 1) as i32,
                                 ));
                             }
-                            if modifiers.ctrl && modifiers.alt && (sym == xkb::KEY_q || sym == xkb::KEY_Q)
+                            if modifiers.ctrl
+                                && modifiers.alt
+                                && (sym == xkb::KEY_q || sym == xkb::KEY_Q)
                             {
                                 return FilterResult::Intercept(KeyAction::Quit);
                             }
@@ -78,8 +81,12 @@ impl Vitrine {
                 let mut pos = pointer.current_location() + event.delta();
                 if let Some(output) = self.space.outputs().next() {
                     let geo = self.space.output_geometry(output).unwrap();
-                    pos.x = pos.x.clamp(geo.loc.x as f64, (geo.loc.x + geo.size.w) as f64);
-                    pos.y = pos.y.clamp(geo.loc.y as f64, (geo.loc.y + geo.size.h) as f64);
+                    pos.x = pos
+                        .x
+                        .clamp(geo.loc.x as f64, (geo.loc.x + geo.size.w) as f64);
+                    pos.y = pos
+                        .y
+                        .clamp(geo.loc.y as f64, (geo.loc.y + geo.size.h) as f64);
                 }
 
                 let serial = SERIAL_COUNTER.next_serial();
@@ -97,7 +104,9 @@ impl Vitrine {
             }
             // Absolute positioning: winit windows and touchscreens.
             InputEvent::PointerMotionAbsolute { event, .. } => {
-                let Some(output) = self.space.outputs().next() else { return };
+                let Some(output) = self.space.outputs().next() else {
+                    return;
+                };
                 let output_geo = self.space.output_geometry(output).unwrap();
                 let pos = event.position_transformed(output_geo.size) + output_geo.loc.to_f64();
 
@@ -136,12 +145,12 @@ impl Vitrine {
             InputEvent::PointerAxis { event, .. } => {
                 let source = event.source();
 
-                let horizontal_amount = event
-                    .amount(Axis::Horizontal)
-                    .unwrap_or_else(|| event.amount_v120(Axis::Horizontal).unwrap_or(0.0) * 15.0 / 120.);
-                let vertical_amount = event
-                    .amount(Axis::Vertical)
-                    .unwrap_or_else(|| event.amount_v120(Axis::Vertical).unwrap_or(0.0) * 15.0 / 120.);
+                let horizontal_amount = event.amount(Axis::Horizontal).unwrap_or_else(|| {
+                    event.amount_v120(Axis::Horizontal).unwrap_or(0.0) * 15.0 / 120.
+                });
+                let vertical_amount = event.amount(Axis::Vertical).unwrap_or_else(|| {
+                    event.amount_v120(Axis::Vertical).unwrap_or(0.0) * 15.0 / 120.
+                });
 
                 let mut frame = AxisFrame::new(event.time_msec()).source(source);
                 if horizontal_amount != 0.0 {

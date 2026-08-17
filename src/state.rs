@@ -36,6 +36,9 @@ pub struct Vitrine {
     /// Present only on the udev backend; input handling uses it to VT-switch.
     pub session: Option<LibSeatSession>,
 
+    /// The kiosk app's lifecycle owner (None if no app is configured).
+    pub supervisor: Option<crate::kiosk::AppSupervisor>,
+
     // Wayland protocol state (one per advertised global)
     pub compositor_state: CompositorState,
     pub xdg_shell_state: XdgShellState,
@@ -83,6 +86,7 @@ impl Vitrine {
             loop_signal,
             socket_name,
             session: None,
+            supervisor: None,
 
             compositor_state,
             xdg_shell_state,
@@ -119,7 +123,10 @@ impl Vitrine {
                 |_, display, state| {
                     // Safety: we don't drop the display
                     unsafe {
-                        display.get_mut().dispatch_clients(&mut state.state).unwrap();
+                        display
+                            .get_mut()
+                            .dispatch_clients(&mut state.state)
+                            .unwrap();
                     }
                     Ok(PostAction::Continue)
                 },
@@ -155,7 +162,9 @@ impl Vitrine {
     /// Re-send a fullscreen configure to every window (e.g. after the output
     /// was resized or rotated).
     pub fn refit_windows(&self) {
-        let Some(size) = self.output_size() else { return };
+        let Some(size) = self.output_size() else {
+            return;
+        };
         for window in self.space.elements() {
             if let Some(toplevel) = window.toplevel() {
                 toplevel.with_pending_state(|state| {
@@ -166,13 +175,18 @@ impl Vitrine {
         }
     }
 
-    pub fn surface_under(&self, pos: Point<f64, Logical>) -> Option<(WlSurface, Point<f64, Logical>)> {
+    pub fn surface_under(
+        &self,
+        pos: Point<f64, Logical>,
+    ) -> Option<(WlSurface, Point<f64, Logical>)> {
         use smithay::desktop::WindowSurfaceType;
-        self.space.element_under(pos).and_then(|(window, location)| {
-            window
-                .surface_under(pos - location.to_f64(), WindowSurfaceType::ALL)
-                .map(|(s, p)| (s, (p + location).to_f64()))
-        })
+        self.space
+            .element_under(pos)
+            .and_then(|(window, location)| {
+                window
+                    .surface_under(pos - location.to_f64(), WindowSurfaceType::ALL)
+                    .map(|(s, p)| (s, (p + location).to_f64()))
+            })
     }
 }
 

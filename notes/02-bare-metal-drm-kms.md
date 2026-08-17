@@ -113,3 +113,20 @@ cd ~/Projects/vitrine && ./target/debug/vitrine --tty -c foot
 3. [libinput docs](https://wayland.freedesktop.org/libinput/doc/latest/) — "Architecture" page
 4. [The Wayland Book, "Seats" chapter](https://wayland-book.com/seat.html) — ties kernel seats to `wl_seat`
 5. `anvil/src/udev.rs` in `~/Projects/smithay-ref` — read it *after* ours; recognize which extra 1,400 lines buy which feature
+
+## Field notes from the first real run
+
+Two things went wrong before it worked — both are better interview material
+than the code itself:
+
+1. **`FailedToOpenSession` (errno 38, ENOSYS)** — libseat's way of saying "no
+   backend would seat you". Root cause: running with `--tty` from a terminal
+   *inside* the desktop session. The logind backend asks for device control of
+   your current session, but KWin already holds it. Lesson: the seat broker
+   grants control to *the active session on the active VT* — you must
+   physically be on a TTY. `LIBSEAT_LOGLEVEL=debug` shows each backend's
+   refusal reason.
+2. **Ctrl+Alt+F3 "did nothing"** — laptop F-row defaults to media keys; the
+   VT switch chord is really Ctrl+Alt+**Fn**+F3. The same applies inside
+   vitrine: our keybinding intercepts `XF86Switch_VT_n`, which xkb only
+   produces when the keyboard actually sends an F-key.

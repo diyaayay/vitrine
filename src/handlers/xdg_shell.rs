@@ -45,7 +45,12 @@ impl XdgShellHandler for Vitrine {
         let _ = self.popups.track_popup(PopupKind::Xdg(surface));
     }
 
-    fn reposition_request(&mut self, surface: PopupSurface, positioner: PositionerState, token: u32) {
+    fn reposition_request(
+        &mut self,
+        surface: PopupSurface,
+        positioner: PositionerState,
+        token: u32,
+    ) {
         surface.with_pending_state(|state| {
             let geometry = positioner.get_geometry();
             state.geometry = geometry;
@@ -57,7 +62,8 @@ impl XdgShellHandler for Vitrine {
 
     // Kiosk policy: interactive move and resize do not exist. A fullscreen
     // window has nowhere to go, so both requests are deliberately ignored.
-    fn move_request(&mut self, _surface: ToplevelSurface, _seat: wl_seat::WlSeat, _serial: Serial) {}
+    fn move_request(&mut self, _surface: ToplevelSurface, _seat: wl_seat::WlSeat, _serial: Serial) {
+    }
 
     fn resize_request(
         &mut self,
@@ -98,7 +104,11 @@ impl Vitrine {
         if let Some(window) = self
             .space
             .elements()
-            .find(|w| w.toplevel().map(|t| t.wl_surface() == surface).unwrap_or(false))
+            .find(|w| {
+                w.toplevel()
+                    .map(|t| t.wl_surface() == surface)
+                    .unwrap_or(false)
+            })
             .cloned()
         {
             let initial_configure_sent = with_states(surface, |states| {
@@ -132,11 +142,11 @@ impl Vitrine {
         let Ok(root) = find_popup_root_surface(&PopupKind::Xdg(popup.clone())) else {
             return;
         };
-        let Some(window) = self
-            .space
-            .elements()
-            .find(|w| w.toplevel().map(|t| t.wl_surface() == &root).unwrap_or(false))
-        else {
+        let Some(window) = self.space.elements().find(|w| {
+            w.toplevel()
+                .map(|t| t.wl_surface() == &root)
+                .unwrap_or(false)
+        }) else {
             return;
         };
 

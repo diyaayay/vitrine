@@ -117,10 +117,19 @@ pub fn init_udev(
         .encoders()
         .iter()
         .filter_map(|h| drm.get_encoder(*h).ok())
-        .find_map(|enc| res_handles.filter_crtcs(enc.possible_crtcs()).first().copied())
+        .find_map(|enc| {
+            res_handles
+                .filter_crtcs(enc.possible_crtcs())
+                .first()
+                .copied()
+        })
         .ok_or("no CRTC available for connector")?;
 
-    let output_name = format!("{}-{}", connector.interface().as_str(), connector.interface_id());
+    let output_name = format!(
+        "{}-{}",
+        connector.interface().as_str(),
+        connector.interface_id()
+    );
     info!(output_name, ?mode, "mode set");
 
     let drm_surface = drm.create_surface(crtc, mode, &[connector.handle()])?;
@@ -128,8 +137,12 @@ pub fn init_udev(
     // 5. The swapchain: GBM buffers page-flipped to the crtc.
     let allocator = GbmAllocator::new(gbm, GbmBufferFlags::RENDERING | GbmBufferFlags::SCANOUT);
     let render_formats = renderer.egl_context().dmabuf_render_formats().clone();
-    let gbm_surface =
-        GbmBufferedSurface::new(drm_surface, allocator, SUPPORTED_COLOR_FORMATS, render_formats)?;
+    let gbm_surface = GbmBufferedSurface::new(
+        drm_surface,
+        allocator,
+        SUPPORTED_COLOR_FORMATS,
+        render_formats,
+    )?;
 
     // 6. Advertise the physical output to clients.
     let output = Output::new(
@@ -147,7 +160,12 @@ pub fn init_udev(
     );
     let _global = output.create_global::<Vitrine>(&data.display_handle);
     let wl_mode = WlMode::from(mode);
-    output.change_current_state(Some(wl_mode), Some(Transform::Normal), None, Some((0, 0).into()));
+    output.change_current_state(
+        Some(wl_mode),
+        Some(Transform::Normal),
+        None,
+        Some((0, 0).into()),
+    );
     output.set_preferred(wl_mode);
     state.space.map_output(&output, (0, 0));
 

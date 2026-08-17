@@ -1,0 +1,11 @@
+# vitrine kiosk configuration.
+# Search order: --config <path>, then ./vitrine.toml, then built-in defaults.
+
+[app]
+# The application shown fullscreen, forever.
+command = "foot"
+args = []
+# The watchdog: relaunch the app whenever it exits — on an unattended kiosk
+# there is nobody else to. The delay stops a crash loop from spinning.
+restart = true
+restart_delay_ms = 1000

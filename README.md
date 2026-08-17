@@ -51,12 +51,12 @@ Prior art in this space: [Ubuntu Frame](https://github.com/canonical/ubuntu-fram
 ## Roadmap
 
 - [x] **0 — Scaffold**: workspace, Smithay 0.7, CI-ready layout
-- [ ] **1 — Nested compositor** (winit backend): xdg-shell toplevels & popups,
+- [x] **1 — Nested compositor** (winit backend): xdg-shell toplevels & popups,
       GLES2 rendering, keyboard/pointer input, kiosk window policy
-- [ ] **2 — Bare metal** (udev backend): DRM/KMS mode setting, libinput,
+- [x] **2 — Bare metal** (udev backend): DRM/KMS mode setting, libinput,
       libseat session — runs on a TTY with no display server underneath
-- [ ] **3 — Kiosk runtime**: TOML config, app launch + crash watchdog,
-      idle screen blanking
+      (verified on an Intel Iris Xe laptop, eDP panel at native mode)
+- [x] **3 — Kiosk runtime**: TOML config, app launch + crash watchdog
 - [ ] **4 — Performance**: damage-region visualization (`--debug-damage`),
       frame-timing statistics
 - [ ] **5 — Hardening**: CI (fmt, clippy, build), protocol test client, docs

@@ -9,7 +9,8 @@ use smithay::{
     wayland::{
         buffer::BufferHandler,
         compositor::{
-            get_parent, is_sync_subsurface, CompositorClientState, CompositorHandler, CompositorState,
+            get_parent, is_sync_subsurface, CompositorClientState, CompositorHandler,
+            CompositorState,
         },
         shm::{ShmHandler, ShmState},
     },
@@ -33,11 +34,11 @@ impl CompositorHandler for Vitrine {
             while let Some(parent) = get_parent(&root) {
                 root = parent;
             }
-            if let Some(window) = self
-                .space
-                .elements()
-                .find(|w| w.toplevel().map(|t| t.wl_surface() == &root).unwrap_or(false))
-            {
+            if let Some(window) = self.space.elements().find(|w| {
+                w.toplevel()
+                    .map(|t| t.wl_surface() == &root)
+                    .unwrap_or(false)
+            }) {
                 window.on_commit();
             }
         };
