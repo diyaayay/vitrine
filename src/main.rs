@@ -34,15 +34,36 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         display_handle,
     };
 
-    backend::winit::init_winit(&mut event_loop, &mut data)?;
+    // Backend selection: inside an existing session (a Wayland or X display
+    // is reachable) we nest via winit; on a bare TTY we take the hardware
+    // path. --winit / --tty force either.
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let nested = std::env::var_os("WAYLAND_DISPLAY").is_some() || std::env::var_os("DISPLAY").is_some();
+    let use_winit = match (
+        args.iter().any(|a| a == "--winit"),
+        args.iter().any(|a| a == "--tty"),
+    ) {
+        (true, _) => true,
+        (_, true) => false,
+        _ => nested,
+    };
 
-    tracing::info!(?socket_name, "vitrine is running");
+    if use_winit {
+        backend::winit::init_winit(&mut event_loop, &mut data)?;
+    } else {
+        backend::udev::init_udev(&mut event_loop, &mut data)?;
+    }
+
+    tracing::info!(?socket_name, backend = if use_winit { "winit" } else { "udev" }, "vitrine is running");
 
     // Kiosk behavior: launch the configured application as a child, wired to
     // our socket. (TOML config + watchdog restart land in a later checkpoint.)
-    let mut args = std::env::args().skip(1);
-    if let (Some("-c" | "--command"), Some(command)) = (args.next().as_deref(), args.next()) {
-        std::process::Command::new(&command)
+    let command = args
+        .iter()
+        .position(|a| a == "-c" || a == "--command")
+        .and_then(|i| args.get(i + 1));
+    if let Some(command) = command {
+        std::process::Command::new(command)
             .env("WAYLAND_DISPLAY", &socket_name)
             .spawn()
             .map_err(|e| tracing::warn!("failed to launch {command}: {e}"))

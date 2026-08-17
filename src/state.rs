@@ -1,6 +1,7 @@
 use std::{ffi::OsString, sync::Arc};
 
 use smithay::{
+    backend::session::libseat::LibSeatSession,
     desktop::{PopupManager, Space, Window},
     input::{Seat, SeatState},
     reexports::{
@@ -31,6 +32,9 @@ pub struct Vitrine {
 
     pub space: Space<Window>,
     pub loop_signal: LoopSignal,
+
+    /// Present only on the udev backend; input handling uses it to VT-switch.
+    pub session: Option<LibSeatSession>,
 
     // Wayland protocol state (one per advertised global)
     pub compositor_state: CompositorState,
@@ -78,6 +82,7 @@ impl Vitrine {
             space,
             loop_signal,
             socket_name,
+            session: None,
 
             compositor_state,
             xdg_shell_state,
