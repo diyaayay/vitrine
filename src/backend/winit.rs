@@ -27,6 +27,7 @@ pub fn init_winit(
     let state = &mut data.state;
 
     let (mut backend, winit) = winit::init::<GlesRenderer>()?;
+    backend.window().set_title("vitrine");
     if debug_damage {
         backend.renderer().set_debug_flags(DebugFlags::TINT);
     }
