@@ -25,7 +25,7 @@ use smithay::{
         libinput::{LibinputInputBackend, LibinputSessionInterface},
         renderer::{
             damage::OutputDamageTracker, element::surface::WaylandSurfaceRenderElement,
-            gles::GlesRenderer, Bind, DebugFlags, Renderer,
+            gles::GlesRenderer, Bind, DebugFlags, ImportDma, Renderer,
         },
         session::{libseat::LibSeatSession, Event as SessionEvent, Session},
         udev::{all_gpus, primary_gpu},
@@ -101,6 +101,12 @@ pub fn init_udev(
     if debug_damage {
         renderer.set_debug_flags(DebugFlags::TINT);
     }
+
+    // Advertise zero-copy GPU buffer imports, limited to the formats this
+    // renderer can actually consume.
+    let _dmabuf_global = state
+        .dmabuf_state
+        .create_global::<Vitrine>(&data.display_handle, renderer.dmabuf_formats());
 
     // 4. Mode setting: connector -> mode -> crtc -> surface.
     let res_handles = drm.resource_handles()?;

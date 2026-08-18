@@ -56,3 +56,32 @@ delegate_data_device!(Vitrine);
 
 impl OutputHandler for Vitrine {}
 delegate_output!(Vitrine);
+
+//
+// Linux dmabuf (zero-copy GPU buffers)
+//
+
+use smithay::backend::allocator::dmabuf::Dmabuf;
+use smithay::delegate_dmabuf;
+use smithay::wayland::dmabuf::{DmabufGlobal, DmabufHandler, DmabufState, ImportNotifier};
+
+impl DmabufHandler for Vitrine {
+    fn dmabuf_state(&mut self) -> &mut DmabufState {
+        &mut self.dmabuf_state
+    }
+
+    fn dmabuf_imported(
+        &mut self,
+        _global: &DmabufGlobal,
+        _dmabuf: Dmabuf,
+        notifier: ImportNotifier,
+    ) {
+        // We accept optimistically: the renderer lives in the backend, so a
+        // test-import here would need cross-module plumbing. The global only
+        // advertises formats the renderer reported, so imports can fail only
+        // on exotic allocation problems — which then surface at render time.
+        let _ = notifier.successful::<Vitrine>();
+    }
+}
+
+delegate_dmabuf!(Vitrine);

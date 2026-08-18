@@ -15,6 +15,7 @@ use smithay::{
     utils::{Logical, Point, SERIAL_COUNTER},
     wayland::{
         compositor::{CompositorClientState, CompositorState},
+        dmabuf::DmabufState,
         output::OutputManagerState,
         selection::data_device::DataDeviceState,
         shell::xdg::XdgShellState,
@@ -43,6 +44,9 @@ pub struct Vitrine {
     pub compositor_state: CompositorState,
     pub xdg_shell_state: XdgShellState,
     pub shm_state: ShmState,
+    /// The zero-copy buffer path; each backend creates the global with the
+    /// formats its renderer actually supports.
+    pub dmabuf_state: DmabufState,
     pub output_manager_state: OutputManagerState,
     pub seat_state: SeatState<Vitrine>,
     pub data_device_state: DataDeviceState,
@@ -60,6 +64,7 @@ impl Vitrine {
         let compositor_state = CompositorState::new::<Self>(&dh);
         let xdg_shell_state = XdgShellState::new::<Self>(&dh);
         let shm_state = ShmState::new::<Self>(&dh, vec![]);
+        let dmabuf_state = DmabufState::new();
         let output_manager_state = OutputManagerState::new_with_xdg_output::<Self>(&dh);
         let mut seat_state = SeatState::new();
         let data_device_state = DataDeviceState::new::<Self>(&dh);
@@ -91,6 +96,7 @@ impl Vitrine {
             compositor_state,
             xdg_shell_state,
             shm_state,
+            dmabuf_state,
             output_manager_state,
             seat_state,
             data_device_state,

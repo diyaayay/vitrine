@@ -7,7 +7,7 @@ use smithay::{
     backend::{
         renderer::{
             damage::OutputDamageTracker, element::surface::WaylandSurfaceRenderElement,
-            gles::GlesRenderer, DebugFlags, Renderer,
+            gles::GlesRenderer, DebugFlags, ImportDma, Renderer,
         },
         winit::{self, WinitEvent},
     },
@@ -31,6 +31,13 @@ pub fn init_winit(
         backend.renderer().set_debug_flags(DebugFlags::TINT);
     }
     let mut stats = FrameStats::new();
+
+    // Advertise zero-copy GPU buffer imports, limited to the formats this
+    // renderer can actually consume.
+    let dmabuf_formats = backend.renderer().dmabuf_formats();
+    let _dmabuf_global = state
+        .dmabuf_state
+        .create_global::<Vitrine>(display_handle, dmabuf_formats);
 
     let mode = Mode {
         size: backend.window_size(),
