@@ -13,6 +13,10 @@ vitrine boots straight into a single fullscreen Wayland application — on real 
 via DRM/KMS with no display server underneath, or nested as a window inside an existing
 desktop session for development.
 
+![vitrine running nested, foot fullscreen inside](media/vitrine-nested.png)
+*Development mode: vitrine nested as a window, foot running fullscreen inside under
+kiosk policy.*
+
 ## Design
 
 A kiosk is not a small desktop; it is a different product with different invariants:
