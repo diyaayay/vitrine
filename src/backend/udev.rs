@@ -25,7 +25,7 @@ use smithay::{
         libinput::{LibinputInputBackend, LibinputSessionInterface},
         renderer::{
             damage::OutputDamageTracker, element::surface::WaylandSurfaceRenderElement,
-            gles::GlesRenderer, Bind,
+            gles::GlesRenderer, Bind, DebugFlags, Renderer,
         },
         session::{libseat::LibSeatSession, Event as SessionEvent, Session},
         udev::{all_gpus, primary_gpu},
@@ -43,7 +43,7 @@ use smithay::{
 };
 use tracing::{error, info, warn};
 
-use crate::{CalloopData, Vitrine};
+use crate::{perf::FrameStats, CalloopData, Vitrine};
 
 const CLEAR_COLOR: [f32; 4] = [0.02, 0.02, 0.05, 1.0];
 const SUPPORTED_COLOR_FORMATS: &[Fourcc] = &[Fourcc::Argb8888, Fourcc::Abgr8888];
@@ -57,11 +57,13 @@ struct UdevData {
     renderer: GlesRenderer,
     damage_tracker: OutputDamageTracker,
     output: Output,
+    stats: FrameStats,
 }
 
 pub fn init_udev(
     event_loop: &mut EventLoop<CalloopData>,
     data: &mut CalloopData,
+    debug_damage: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let state = &mut data.state;
 
@@ -95,7 +97,10 @@ pub fn init_udev(
     let egl_display = unsafe { EGLDisplay::new(gbm.clone())? };
     let egl_context = EGLContext::new(&egl_display)?;
     // Safety: we never share this context across threads.
-    let renderer = unsafe { GlesRenderer::new(egl_context)? };
+    let mut renderer = unsafe { GlesRenderer::new(egl_context)? };
+    if debug_damage {
+        renderer.set_debug_flags(DebugFlags::TINT);
+    }
 
     // 4. Mode setting: connector -> mode -> crtc -> surface.
     let res_handles = drm.resource_handles()?;
@@ -181,6 +186,7 @@ pub fn init_udev(
         renderer,
         damage_tracker,
         output,
+        stats: FrameStats::new(),
     }));
 
     // 7. Input: libinput reads evdev devices, gated through the session.
@@ -254,8 +260,10 @@ fn render_frame(udev: &mut UdevData, state: &mut Vitrine, display_handle: &mut D
         renderer,
         damage_tracker,
         output,
+        stats,
         ..
     } = udev;
+    let render_start = std::time::Instant::now();
 
     // Acquire the next swapchain buffer. Its `age` tells the damage tracker
     // how many frames ago this buffer was last drawn, i.e. which accumulated
@@ -291,11 +299,13 @@ fn render_frame(udev: &mut UdevData, state: &mut Vitrine, display_handle: &mut D
 
     match render_result {
         Ok(result) => {
+            let repainted = result.damage.is_some();
             let damage = result.damage.cloned();
             if let Err(err) = gbm_surface.queue_buffer(None, damage, ()) {
                 warn!(?err, "failed to queue buffer");
                 return;
             }
+            stats.record(render_start.elapsed(), repainted);
         }
         Err(err) => {
             warn!(?err, "render failed");

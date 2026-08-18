@@ -1,13 +1,13 @@
 //! Development backend: the compositor runs as an ordinary window inside an
 //! existing desktop session. The window *is* our single output.
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use smithay::{
     backend::{
         renderer::{
             damage::OutputDamageTracker, element::surface::WaylandSurfaceRenderElement,
-            gles::GlesRenderer,
+            gles::GlesRenderer, DebugFlags, Renderer,
         },
         winit::{self, WinitEvent},
     },
@@ -16,16 +16,21 @@ use smithay::{
     utils::{Rectangle, Transform},
 };
 
-use crate::{CalloopData, Vitrine};
+use crate::{perf::FrameStats, CalloopData, Vitrine};
 
 pub fn init_winit(
     event_loop: &mut EventLoop<CalloopData>,
     data: &mut CalloopData,
+    debug_damage: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let display_handle = &mut data.display_handle;
     let state = &mut data.state;
 
-    let (mut backend, winit) = winit::init()?;
+    let (mut backend, winit) = winit::init::<GlesRenderer>()?;
+    if debug_damage {
+        backend.renderer().set_debug_flags(DebugFlags::TINT);
+    }
+    let mut stats = FrameStats::new();
 
     let mode = Mode {
         size: backend.window_size(),
@@ -81,7 +86,11 @@ pub fn init_winit(
                     let size = backend.window_size();
                     let damage = Rectangle::from_size(size);
 
-                    {
+                    let render_start = Instant::now();
+                    // Buffer age tells the damage tracker how stale this
+                    // swapchain buffer is; 0 would force a full repaint.
+                    let age = backend.buffer_age().unwrap_or(0);
+                    let repainted = {
                         let (renderer, mut framebuffer) = backend.bind().unwrap();
                         smithay::desktop::space::render_output::<
                             _,
@@ -93,15 +102,18 @@ pub fn init_winit(
                             renderer,
                             &mut framebuffer,
                             1.0,
-                            0,
+                            age,
                             [&state.space],
                             &[],
                             &mut damage_tracker,
                             [0.02, 0.02, 0.05, 1.0],
                         )
-                        .unwrap();
-                    }
+                        .unwrap()
+                        .damage
+                        .is_some()
+                    };
                     backend.submit(Some(&[damage])).unwrap();
+                    stats.record(render_start.elapsed(), repainted);
 
                     // Frame callbacks: tell every client "your frame was shown,
                     // you may draw the next one". This is what paces client

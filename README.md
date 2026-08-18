@@ -57,7 +57,7 @@ Prior art in this space: [Ubuntu Frame](https://github.com/canonical/ubuntu-fram
       libseat session — runs on a TTY with no display server underneath
       (verified on an Intel Iris Xe laptop, eDP panel at native mode)
 - [x] **3 — Kiosk runtime**: TOML config, app launch + crash watchdog
-- [ ] **4 — Performance**: damage-region visualization (`--debug-damage`),
+- [x] **4 — Performance**: damage visualization (`--debug-damage`),
       frame-timing statistics
 - [ ] **5 — Hardening**: CI (fmt, clippy, build), protocol test client, docs
 
@@ -78,6 +78,30 @@ WAYLAND_DISPLAY=wayland-1 some-app    # socket name is printed at startup
 
 On bare metal (checkpoint 2): switch to a free TTY (`Ctrl+Alt+F3`) and run the same
 binary — it will pick the DRM backend automatically.
+
+## Performance
+
+vitrine renders incrementally: an `OutputDamageTracker` intersects each
+swapchain buffer's **age** with accumulated client damage, so only regions
+that changed since that buffer was last on screen are repainted. Two tools
+make this observable:
+
+- `--debug-damage` — tints every repainted pixel, so you can *watch* damage
+  tracking work: type in the kiosk terminal and only the touched character
+  cells flash, while the rest of the screen provably isn't redrawn.
+- Frame stats, logged every 5 s (`RUST_LOG=info`):
+
+  ```
+  frame stats fps=60.0 avg_render_ms=0.36 max_render_ms=0.48 idle_frames=100%
+  ```
+
+  `idle_frames` is the share of frames where nothing needed repainting at
+  all — for a kiosk showing static content this should sit near 100%, which
+  is the difference between a warm and a cool fanless signage box.
+
+  This instrumentation already earned its keep: it exposed the nested
+  backend full-repainting every frame (`idle_frames=0%`) because it passed
+  buffer age 0; feeding real swapchain age took idle repaints to 100%.
 
 ## Study notes
 

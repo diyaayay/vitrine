@@ -3,6 +3,7 @@ mod config;
 mod handlers;
 mod input;
 mod kiosk;
+mod perf;
 mod state;
 
 use std::{path::PathBuf, time::Duration};
@@ -56,10 +57,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         _ => nested,
     };
 
+    // --debug-damage tints every repainted pixel, making damage tracking
+    // visible: regions being redrawn flash, untouched regions stay clean.
+    let debug_damage = args.iter().any(|a| a == "--debug-damage");
+
     if use_winit {
-        backend::winit::init_winit(&mut event_loop, &mut data)?;
+        backend::winit::init_winit(&mut event_loop, &mut data, debug_damage)?;
     } else {
-        backend::udev::init_udev(&mut event_loop, &mut data)?;
+        backend::udev::init_udev(&mut event_loop, &mut data, debug_damage)?;
     }
 
     tracing::info!(
