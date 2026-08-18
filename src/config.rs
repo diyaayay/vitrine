@@ -43,3 +43,55 @@ impl Config {
         Ok(toml::from_str(&std::fs::read_to_string(path)?)?)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_config_yields_defaults() {
+        let config: Config = toml::from_str("").unwrap();
+        assert_eq!(config.app.command, None);
+        assert!(config.app.args.is_empty());
+        assert!(config.app.restart, "watchdog must default to on");
+        assert_eq!(config.app.restart_delay_ms, 1000);
+    }
+
+    #[test]
+    fn full_config_parses() {
+        let config: Config = toml::from_str(
+            r#"
+            [app]
+            command = "cog"
+            args = ["--fullscreen", "https://example.com"]
+            restart = false
+            restart_delay_ms = 250
+            "#,
+        )
+        .unwrap();
+        assert_eq!(config.app.command.as_deref(), Some("cog"));
+        assert_eq!(config.app.args, ["--fullscreen", "https://example.com"]);
+        assert!(!config.app.restart);
+        assert_eq!(config.app.restart_delay_ms, 250);
+    }
+
+    #[test]
+    fn partial_config_keeps_other_defaults() {
+        let config: Config = toml::from_str("[app]\ncommand = \"foot\"\n").unwrap();
+        assert_eq!(config.app.command.as_deref(), Some("foot"));
+        assert!(config.app.restart, "unset fields must keep their defaults");
+    }
+
+    #[test]
+    fn unknown_keys_are_rejected() {
+        // A typo like `comand` must fail loudly at startup, not silently
+        // launch nothing on a kiosk nobody is watching.
+        let err = toml::from_str::<Config>("[app]\ncomand = \"foot\"\n");
+        assert!(err.is_err());
+    }
+
+    #[test]
+    fn invalid_toml_is_an_error() {
+        assert!(toml::from_str::<Config>("[app\ncommand=").is_err());
+    }
+}

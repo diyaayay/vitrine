@@ -95,3 +95,70 @@ impl Drop for AppSupervisor {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn wait_until(supervisor: &mut AppSupervisor, cond: impl Fn(&AppSupervisor) -> bool) -> bool {
+        // Bounded polling: the watchdog is timer-driven in production, so the
+        // tests drive tick() the same way the calloop timer would.
+        for _ in 0..200 {
+            supervisor.tick();
+            if cond(supervisor) {
+                return true;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        false
+    }
+
+    fn launch(command: &str, restart: bool) -> AppSupervisor {
+        AppSupervisor::launch(
+            command.into(),
+            Vec::new(),
+            restart,
+            Duration::ZERO,
+            OsString::from("wayland-test"),
+        )
+    }
+
+    #[test]
+    fn watchdog_relaunches_exited_app() {
+        let mut supervisor = launch("true", true);
+        let first_pid = supervisor.child.as_ref().map(|c| c.id());
+        assert!(first_pid.is_some(), "launch must spawn the app");
+
+        // `true` exits immediately; the watchdog must notice and respawn.
+        let respawned = wait_until(&mut supervisor, |s| {
+            s.child
+                .as_ref()
+                .map(|c| c.id())
+                .is_some_and(|id| Some(id) != first_pid)
+        });
+        assert!(respawned, "expected a new child pid after exit");
+    }
+
+    #[test]
+    fn no_restart_means_no_respawn() {
+        let mut supervisor = launch("true", false);
+        let exited = wait_until(&mut supervisor, |s| s.child.is_none());
+        assert!(exited, "child exit must be detected");
+
+        for _ in 0..10 {
+            supervisor.tick();
+        }
+        assert!(supervisor.child.is_none(), "restart=false must stay down");
+        assert!(supervisor.respawn_at.is_none());
+    }
+
+    #[test]
+    fn failed_spawn_schedules_retry() {
+        let supervisor = launch("/nonexistent/vitrine-test-binary", true);
+        assert!(supervisor.child.is_none());
+        assert!(
+            supervisor.respawn_at.is_some(),
+            "a failed launch must be retried, not abandoned"
+        );
+    }
+}

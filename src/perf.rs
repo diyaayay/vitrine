@@ -60,3 +60,31 @@ impl Default for FrameStats {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn frames_aggregate_within_a_window() {
+        let mut stats = FrameStats::new();
+        stats.record(Duration::from_millis(1), true);
+        stats.record(Duration::from_millis(3), false);
+        stats.record(Duration::from_millis(2), false);
+
+        // Still inside the report window: nothing reset, everything counted.
+        assert_eq!(stats.frames, 3);
+        assert_eq!(stats.idle_frames, 2);
+        assert_eq!(stats.max_render, Duration::from_millis(3));
+        assert_eq!(stats.total_render, Duration::from_millis(6));
+    }
+
+    #[test]
+    fn idle_frames_never_exceed_frames() {
+        let mut stats = FrameStats::new();
+        for _ in 0..50 {
+            stats.record(Duration::ZERO, false);
+        }
+        assert!(stats.idle_frames <= stats.frames);
+    }
+}
